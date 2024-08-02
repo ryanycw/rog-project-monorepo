@@ -1,26 +1,18 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.20;
-
-import "hardhat/console.sol";
+pragma solidity 0.8.19;
 
 import "erc721a/contracts/extensions/ERC721AQueryable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/common/ERC2981.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import "@chainlink/contracts/src/v0.8/shared/access/ConfirmedOwner.sol";
 import "@chainlink/contracts/src/v0.8/vrf/VRFV2WrapperConsumerBase.sol";
 
-error ExceedMaxTokens();
-error TokenNotExist();
-error Revealed();
-error InvalidInput();
-error InvalidTimestamp();
-error InvalidSignature();
-
 contract PhaseThreeAvatar is ERC721AQueryable, ERC2981, VRFV2WrapperConsumerBase, ConfirmedOwner {
+    using Address for address payable;
     using Strings for uint256;
 
     struct RequestStatus {
@@ -45,10 +37,10 @@ contract PhaseThreeAvatar is ERC721AQueryable, ERC2981, VRFV2WrapperConsumerBase
     address public treasury;
     uint256 public soulboundMintTime = type(uint256).max;
     uint256 public publicMintTime = type(uint256).max;
-    uint256 public publicMintPrice = type(uint256).max;
+    uint256 public mintPrice = type(uint256).max;
 
     /// @dev maximum supply of the ERC721A tokens
-    uint256 public maxSupply;
+    uint64 public maxSupply;
     string public randomAlgoHash;
     string public randomAlgoIPFSHash;
     /// @dev uri parameters of the tokenURI of the ERC721 tokenss
@@ -68,8 +60,16 @@ contract PhaseThreeAvatar is ERC721AQueryable, ERC2981, VRFV2WrapperConsumerBase
     RequestConfig public requestConfig;
 
     /*///////////////////////////////////////////////////////////////
-                                Events
+                            Events or Errors
     //////////////////////////////////////////////////////////////*/
+
+    error InvalidAddressZero();
+    error ExceedMaxTokens();
+    error TokenNotExist();
+    error Revealed();
+    error InvalidInput();
+    error InvalidTimestamp();
+    error InvalidSignature();
 
     event MintTokens(address to, uint256 quantity, uint256 totalSupply);
     event URISet(string uriPrefix, string uriSuffix);
@@ -87,7 +87,7 @@ contract PhaseThreeAvatar is ERC721AQueryable, ERC2981, VRFV2WrapperConsumerBase
         address _treasury,
         address _mintRole,
         address _signer,
-        uint256 _maxSupply,
+        uint64 _maxSupply,
         uint96 _royaltyFee,
         address _linkAddress,
         address _wrapperAddress,
@@ -111,6 +111,8 @@ contract PhaseThreeAvatar is ERC721AQueryable, ERC2981, VRFV2WrapperConsumerBase
             requestConfirmations: _requestConfirmations,
             numWords: 1
         });
+
+        if (_treasury == address(0) || _mintRole == address(0) || _signer == address(0)) revert InvalidAddressZero();
 
         treasury = _treasury;
         mintRole = _mintRole;
@@ -158,11 +160,13 @@ contract PhaseThreeAvatar is ERC721AQueryable, ERC2981, VRFV2WrapperConsumerBase
      * @param _tokenId TokenId which caller wants to get the metadata of
      */
     function tokenURI(uint256 _tokenId) public view override(IERC721A, ERC721A) returns (string memory _tokenURI) {
-        if (!_exists(_tokenId)) {
-            revert TokenNotExist();
-        }
+        if (!_exists(_tokenId)) revert TokenNotExist();
 
         return string(abi.encodePacked(uriPrefix, _tokenId.toString(), uriSuffix));
+    }
+
+    function _startTokenId() internal pure override returns (uint256) {
+        return 1;
     }
 
     /**
@@ -176,8 +180,7 @@ contract PhaseThreeAvatar is ERC721AQueryable, ERC2981, VRFV2WrapperConsumerBase
         view
         returns (bool _whitelisted)
     {
-        bytes32 hash = MessageHashUtils.toEthSignedMessageHash(keccak256(abi.encodePacked(msg.sender, _tokenId)));
-
+        bytes32 hash = ECDSA.toEthSignedMessageHash(keccak256(abi.encodePacked(msg.sender, _tokenId)));
         return _signer == ECDSA.recover(hash, _signature);
     }
 
@@ -188,17 +191,11 @@ contract PhaseThreeAvatar is ERC721AQueryable, ERC2981, VRFV2WrapperConsumerBase
      * @notice This function is only available when the total supply is less than the maximum supply
      * @notice This function is only available when the soulbound token holder has not minted the token
      */
-    function mintBySoulboundHolder(uint256 _tokenId, bytes calldata _signature) external {
-        if (totalSupply() + 1 > maxSupply) {
-            revert ExceedMaxTokens();
-        }
-        if (block.timestamp < soulboundMintTime) {
-            revert InvalidTimestamp();
-        }
-        // If this signature is from a valid signer
-        if (!verify(_tokenId, signer, _signature)) {
-            revert InvalidSignature();
-        }
+    function mintBySoulboundHolder(uint256 _tokenId, bytes calldata _signature) payable external {
+        if (msg.value != mintPrice) revert InvalidInput();
+        if (totalSupply() + 1 > maxSupply) revert ExceedMaxTokens();
+        if (block.timestamp < soulboundMintTime) revert InvalidTimestamp();
+        if (!verify(_tokenId, signer, _signature)) revert InvalidSignature();
 
         avatarToSoulbound[totalSupply()] = _tokenId;
 
@@ -214,15 +211,9 @@ contract PhaseThreeAvatar is ERC721AQueryable, ERC2981, VRFV2WrapperConsumerBase
      * @notice This function is only available when the msg.value is greater than the public mint price
      */
     function mintByAllUser() external payable {
-        if (totalSupply() + 1 > maxSupply) {
-            revert ExceedMaxTokens();
-        }
-        if (block.timestamp < publicMintTime) {
-            revert InvalidTimestamp();
-        }
-        if (msg.value < publicMintPrice) {
-            revert InvalidInput();
-        }
+        if (msg.value != mintPrice) revert InvalidInput();
+        if (totalSupply() + 1 > maxSupply) revert ExceedMaxTokens();
+        if (block.timestamp < publicMintTime) revert InvalidTimestamp();
 
         _safeMint(msg.sender, 1);
 
@@ -239,10 +230,7 @@ contract PhaseThreeAvatar is ERC721AQueryable, ERC2981, VRFV2WrapperConsumerBase
      * @param _quantity Designated amount of tokens
      */
     function mintGiveawayTokens(address _to, uint256 _quantity) external onlyMintRole {
-        if (totalSupply() + _quantity > maxSupply) {
-            revert ExceedMaxTokens();
-        }
-
+        if (totalSupply() + _quantity > maxSupply) revert ExceedMaxTokens();
         _safeMint(_to, _quantity);
         emit MintTokens(_to, _quantity, totalSupply());
     }
@@ -252,7 +240,7 @@ contract PhaseThreeAvatar is ERC721AQueryable, ERC2981, VRFV2WrapperConsumerBase
      * @param _amount Amount of funds to withdraw
      */
     function withdraw(uint256 _amount) external payable onlyOwner {
-        payable(treasury).transfer(_amount);
+        payable(treasury).sendValue(_amount);
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -264,6 +252,7 @@ contract PhaseThreeAvatar is ERC721AQueryable, ERC2981, VRFV2WrapperConsumerBase
      * @param _mintRole New address of the mintRole
      */
     function setMintRole(address _mintRole) external onlyOwner {
+        if (_mintRole == address(0)) revert InvalidAddressZero();
         mintRole = _mintRole;
 
         emit AddressSet("mintRole", _mintRole);
@@ -274,6 +263,7 @@ contract PhaseThreeAvatar is ERC721AQueryable, ERC2981, VRFV2WrapperConsumerBase
      * @param _signer New address of the signer
      */
     function setSigner(address _signer) external onlyOwner {
+        if (_signer == address(0)) revert InvalidAddressZero();
         signer = _signer;
 
         emit AddressSet("signer", _signer);
@@ -284,6 +274,7 @@ contract PhaseThreeAvatar is ERC721AQueryable, ERC2981, VRFV2WrapperConsumerBase
      * @param _treasury New address that caller wants to set as the treasury address
      */
     function setTreasury(address _treasury) external onlyOwner {
+        if (_treasury == address(0)) revert InvalidAddressZero();
         treasury = _treasury;
 
         emit AddressSet("treasury", _treasury);
@@ -313,21 +304,18 @@ contract PhaseThreeAvatar is ERC721AQueryable, ERC2981, VRFV2WrapperConsumerBase
      * @dev Set the price of minting the tokens for all users
      * @param _mintPrice New price of minting the tokens for all users
      */
-    function setPublicMintPrice(uint256 _mintPrice) external onlyOwner {
-        publicMintPrice = _mintPrice;
+    function setMintPrice(uint256 _mintPrice) external onlyOwner {
+        mintPrice = _mintPrice;
 
-        emit ParametersSet("publicMintPrice", _mintPrice);
+        emit ParametersSet("mintPrice", _mintPrice);
     }
 
     /**
      * @dev Set the maximum total supply of tokens
      * @param _maxSupply Maximum total supply of the tokens
      */
-    function setMaxSupply(uint256 _maxSupply) external onlyOwner {
-        if (_maxSupply < totalSupply()) {
-            revert InvalidInput();
-        }
-
+    function setMaxSupply(uint64 _maxSupply) external onlyOwner {
+        if (_maxSupply < totalSupply()) revert InvalidInput();
         maxSupply = _maxSupply;
 
         emit ParametersSet("maxSupply", _maxSupply);
@@ -350,7 +338,6 @@ contract PhaseThreeAvatar is ERC721AQueryable, ERC2981, VRFV2WrapperConsumerBase
      * @param _receiver Address that should receive royalties
      * @param _feeNumerator Amount of royalties that collection creator wants to receive
      */
-
     function setDefaultRoyalty(address _receiver, uint96 _feeNumerator) external onlyOwner {
         _setDefaultRoyalty(_receiver, _feeNumerator);
     }
@@ -373,9 +360,7 @@ contract PhaseThreeAvatar is ERC721AQueryable, ERC2981, VRFV2WrapperConsumerBase
      * @return requestId The ID of the VRF request
      */
     function requestRandomWords() external onlyOwner returns (uint256 /*requestId*/ ) {
-        if (revealed) {
-            revert Revealed();
-        }
+        if (revealed) revert Revealed();
         // Calculate the amount of LINK to send with the request
         uint256 requestPrice = vrfWrapper.calculateRequestPrice(requestConfig.callbackGasLimit);
         // Transfer the LINK to the VRF Wrapper contract
