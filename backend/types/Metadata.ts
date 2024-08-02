@@ -1,5 +1,5 @@
 export type Metadata = {
     name: string;
-    description: string;
+    description?: string;
     image: string;
 };

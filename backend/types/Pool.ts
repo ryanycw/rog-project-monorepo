@@ -1,8 +1,8 @@
 export enum POOL_TYPE {
-    GOLD,
-    BLACK,
-    RED,
-    THE,
+    LEGENDARY,
+    EPIC,
+    RARE,
+    COMMON,
 }
 
 export type Pool = {

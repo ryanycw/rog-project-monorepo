@@ -1,6 +1,6 @@
 export enum BlindBoxType {
-    Golden,
-    Blue,
-    Red,
-    Black,
+    LEGENDARY,
+    EPIC,
+    RARE,
+    COMMON,
 }

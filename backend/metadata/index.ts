@@ -1,4 +1,4 @@
-export { default as BlackAether } from "../metadata/blindbox/black_aether.json";
-export { default as GoldAether } from "../metadata/blindbox/gold_aether.json";
-export { default as RedAether } from "../metadata/blindbox/red_aether.json";
-export { default as BlueAether } from "../metadata/blindbox/blue_aether.json";
+export { default as RareCryopod } from "../metadata/blindbox/rare_cryopod.json";
+export { default as LegendaryCryopod } from "../metadata/blindbox/legdendary_cryopod.json";
+export { default as EpicCryopod } from "../metadata/blindbox/epic_cryopod.json";
+export { default as CommonCryopod } from "../metadata/blindbox/common_cryopod.json";
