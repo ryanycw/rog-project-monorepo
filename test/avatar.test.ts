@@ -4,7 +4,6 @@ import { time } from "@nomicfoundation/hardhat-network-helpers";
 import { IERC20__factory, PhaseTwoSoulBound } from '../build/typechain'
 import { PhaseThreeAvatar } from '../build/typechain'
 import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers'
-import { ZeroAddress } from 'ethers';
 
 async function genSign(signer: any, address: string, tokenId: number) {
   const messageHash = ethers.solidityPackedKeccak256([ "address", "uint256" ], [ address, tokenId ]);
@@ -19,8 +18,8 @@ describe('PhaseThreeAvatar', () => {
   let treasury: SignerWithAddress
   let phaseThreeAvatar: PhaseThreeAvatar
 
-  const _uriPrefix: string = 'https://example.com/'
-  const _uriSuffix: string = '.json'
+  const _randomSeedHash: string = ''
+  const _randomAlgoHash: string = ''
 
   const _maxSupply: number = 10000
   const _royaltyFee: number = 1000
@@ -47,8 +46,8 @@ describe('PhaseThreeAvatar', () => {
           _wrapperAddress,
           _callbackGasLimit,
           _requestConfirmations,
-          _uriPrefix,
-          _uriSuffix
+          _randomSeedHash,
+          _randomAlgoHash
         )
       )
   })
@@ -77,7 +76,7 @@ describe('PhaseThreeAvatar', () => {
   describe("Token Id", function () {
     it("should be owner of token 1 instead of 0", async function () {
         await phaseThreeAvatar.connect(signers[0]).setMintPrice(ethers.parseEther("0.1"));
-        await phaseThreeAvatar.connect(signers[0]).setPublicMintTime(await time.latest());
+        await phaseThreeAvatar.connect(signers[0]).setPublicStartMintTime(await time.latest());
         let totalTokens = await phaseThreeAvatar.totalSupply();
         expect(totalTokens).to.be.equal('0');
         await phaseThreeAvatar.connect(signers[0]).mintByAllUser({value: ethers.parseEther("0.1")});
@@ -102,14 +101,14 @@ describe('PhaseThreeAvatar', () => {
 
     it("should fail if signature is invalid", async function () {
         await phaseThreeAvatar.connect(signers[0]).setMintPrice(ethers.parseEther("0.1"));
-        await phaseThreeAvatar.connect(signers[0]).setSoulboundMintTime(await time.latest());
+        await phaseThreeAvatar.connect(signers[0]).setSoulboundStartMintTime(await time.latest());
         const sign = await genSign(signers[0], signers[1].address, 2);
         await expect(phaseThreeAvatar.connect(signers[1]).mintBySoulboundHolder(1, sign, {value: ethers.parseEther("0.1")})).to.be.revertedWithCustomError(phaseThreeAvatar,"InvalidSignature");
     })
 
     it("should success", async function () {
         await phaseThreeAvatar.connect(signers[0]).setMintPrice(ethers.parseEther("0.1"));
-        await phaseThreeAvatar.connect(signers[0]).setSoulboundMintTime(await time.latest());
+        await phaseThreeAvatar.connect(signers[0]).setSoulboundStartMintTime(await time.latest());
         let totalTokens = await phaseThreeAvatar.totalSupply();
         expect(totalTokens).to.be.equal('0');
         const sign = await genSign(signers[1], signers[1].address, 1);
@@ -117,7 +116,28 @@ describe('PhaseThreeAvatar', () => {
         totalTokens = await phaseThreeAvatar.totalSupply();
         expect(totalTokens).to.be.equal('1');
     })
+
+    it("should fail if passed soul bound end mint time", async function () {
+        const curTime = await time.latest();
+        await phaseThreeAvatar.connect(signers[0]).setMintPrice(ethers.parseEther("0.1"));
+        await phaseThreeAvatar.connect(signers[0]).setSoulboundStartMintTime(curTime);
+        await phaseThreeAvatar.connect(signers[0]).setSoulboundEndMintTime(curTime + 86400);
+        let totalTokens = await phaseThreeAvatar.totalSupply();
+        expect(totalTokens).to.be.equal('0');
+        const sign = await genSign(signers[1], signers[1].address, 1);
+        await phaseThreeAvatar.connect(signers[1]).mintBySoulboundHolder(1, sign, {value: ethers.parseEther("0.1")});  
+        totalTokens = await phaseThreeAvatar.totalSupply();
+        expect(totalTokens).to.be.equal('1');
+        await time.increase(86400);
+        await expect(phaseThreeAvatar.connect(signers[1]).mintBySoulboundHolder(1, sign, {value: ethers.parseEther("0.1")})).to.be.revertedWithCustomError(phaseThreeAvatar,"InvalidTimestamp");
+        await phaseThreeAvatar.connect(signers[0]).setSoulboundEndMintTime(curTime + 86400 * 2);
+        await phaseThreeAvatar.connect(signers[1]).mintBySoulboundHolder(1, sign, {value: ethers.parseEther("0.1")});
+        totalTokens = await phaseThreeAvatar.totalSupply();
+        expect(totalTokens).to.be.equal('2');
+    })
   })
+
+  describe("Set Random Algo IPFS Link", function () {})
 
   describe("Public Mint", function () {
     it("should fail if price hasn't set", async function () {
@@ -131,12 +151,19 @@ describe('PhaseThreeAvatar', () => {
 
     it("should success", async function () {
         await phaseThreeAvatar.connect(signers[0]).setMintPrice(ethers.parseEther("0.1"));
-        await phaseThreeAvatar.connect(signers[0]).setPublicMintTime(await time.latest());
+        await phaseThreeAvatar.connect(signers[0]).setPublicStartMintTime(await time.latest());
         let totalTokens = await phaseThreeAvatar.totalSupply();
         expect(totalTokens).to.be.equal('0');
         await phaseThreeAvatar.connect(signers[0]).mintByAllUser({value: ethers.parseEther("0.1")});
         totalTokens = await phaseThreeAvatar.totalSupply();
         expect(totalTokens).to.be.equal('1');
+    })
+
+    it("should fail if public mint is paused", async function () {
+        await phaseThreeAvatar.connect(signers[0]).setMintPrice(ethers.parseEther("0.1"));
+        await phaseThreeAvatar.connect(signers[0]).setPublicStartMintTime(await time.latest());
+        await phaseThreeAvatar.connect(signers[0]).pause();
+        await expect(phaseThreeAvatar.connect(signers[0]).mintByAllUser({value: ethers.parseEther("0.1")})).to.be.revertedWith("Pausable: paused");
     })
   })
 
@@ -148,7 +175,7 @@ describe('PhaseThreeAvatar', () => {
     it("should success", async function () {
         const balanceBefore = await ethers.provider.getBalance(treasury.address);
         /* Buy 1 token */
-        await phaseThreeAvatar.connect(signers[0]).setPublicMintTime(await time.latest());
+        await phaseThreeAvatar.connect(signers[0]).setPublicStartMintTime(await time.latest());
         await phaseThreeAvatar.connect(signers[0]).setMintPrice(ethers.parseEther("0.1"));
         await phaseThreeAvatar.connect(signers[0]).mintByAllUser({value: ethers.parseEther("0.1")});
         await phaseThreeAvatar.connect(signers[0]).withdraw(ethers.parseEther("0.1"));

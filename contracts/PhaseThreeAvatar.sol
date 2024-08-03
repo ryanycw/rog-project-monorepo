@@ -2,6 +2,7 @@
 pragma solidity 0.8.19;
 
 import "erc721a/contracts/extensions/ERC721AQueryable.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/common/ERC2981.sol";
@@ -11,7 +12,7 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@chainlink/contracts/src/v0.8/shared/access/ConfirmedOwner.sol";
 import "@chainlink/contracts/src/v0.8/vrf/VRFV2WrapperConsumerBase.sol";
 
-contract PhaseThreeAvatar is ERC721AQueryable, ERC2981, VRFV2WrapperConsumerBase, ConfirmedOwner {
+contract PhaseThreeAvatar is ERC721AQueryable, ERC2981, VRFV2WrapperConsumerBase, ConfirmedOwner, Pausable {
     using Address for address payable;
     using Strings for uint256;
 
@@ -35,14 +36,16 @@ contract PhaseThreeAvatar is ERC721AQueryable, ERC2981, VRFV2WrapperConsumerBase
     address public mintRole;
     address public signer;
     address public treasury;
-    uint256 public soulboundMintTime = type(uint256).max;
-    uint256 public publicMintTime = type(uint256).max;
+    uint256 public soulboundStartMintTime = type(uint256).max;
+    uint256 public soulboundEndMintTime = type(uint256).max;
+    uint256 public publicStartMintTime = type(uint256).max;
     uint256 public mintPrice = type(uint256).max;
 
     /// @dev maximum supply of the ERC721A tokens
     uint64 public maxSupply;
+    string public randomSeedHash;
     string public randomAlgoHash;
-    string public randomAlgoIPFSHash;
+    string public randomAlgoIPFSLink;
     /// @dev uri parameters of the tokenURI of the ERC721 tokenss
     string public uriPrefix;
     string public uriSuffix;
@@ -93,8 +96,8 @@ contract PhaseThreeAvatar is ERC721AQueryable, ERC2981, VRFV2WrapperConsumerBase
         address _wrapperAddress,
         uint32 _callbackGasLimit,
         uint16 _requestConfirmations,
-        string memory _randomAlgoHash,
-        string memory _randomAlgoIPFSHash
+        string memory _randomSeedHash,
+        string memory _randomAlgoHash
     )
         ERC721A("PhaseThreeAvatar", "PTA")
         ConfirmedOwner(msg.sender)
@@ -117,8 +120,8 @@ contract PhaseThreeAvatar is ERC721AQueryable, ERC2981, VRFV2WrapperConsumerBase
         treasury = _treasury;
         mintRole = _mintRole;
         signer = _signer;
+        randomSeedHash = _randomSeedHash;
         randomAlgoHash = _randomAlgoHash;
-        randomAlgoIPFSHash = _randomAlgoIPFSHash;
 
         _setDefaultRoyalty(_treasury, _royaltyFee);
     }
@@ -191,10 +194,12 @@ contract PhaseThreeAvatar is ERC721AQueryable, ERC2981, VRFV2WrapperConsumerBase
      * @notice This function is only available when the total supply is less than the maximum supply
      * @notice This function is only available when the soulbound token holder has not minted the token
      */
-    function mintBySoulboundHolder(uint256 _tokenId, bytes calldata _signature) payable external {
+    function mintBySoulboundHolder(uint256 _tokenId, bytes calldata _signature) external payable {
         if (msg.value != mintPrice) revert InvalidInput();
         if (totalSupply() + 1 > maxSupply) revert ExceedMaxTokens();
-        if (block.timestamp < soulboundMintTime) revert InvalidTimestamp();
+        if (block.timestamp < soulboundStartMintTime || block.timestamp > soulboundEndMintTime) {
+            revert InvalidTimestamp();
+        }
         if (!verify(_tokenId, signer, _signature)) revert InvalidSignature();
 
         avatarToSoulbound[totalSupply()] = _tokenId;
@@ -210,10 +215,10 @@ contract PhaseThreeAvatar is ERC721AQueryable, ERC2981, VRFV2WrapperConsumerBase
      * @notice This function is only available when the total supply is less than the maximum supply
      * @notice This function is only available when the msg.value is greater than the public mint price
      */
-    function mintByAllUser() external payable {
+    function mintByAllUser() external payable whenNotPaused {
         if (msg.value != mintPrice) revert InvalidInput();
         if (totalSupply() + 1 > maxSupply) revert ExceedMaxTokens();
-        if (block.timestamp < publicMintTime) revert InvalidTimestamp();
+        if (block.timestamp < publicStartMintTime) revert InvalidTimestamp();
 
         _safeMint(msg.sender, 1);
 
@@ -246,6 +251,22 @@ contract PhaseThreeAvatar is ERC721AQueryable, ERC2981, VRFV2WrapperConsumerBase
     /*///////////////////////////////////////////////////////////////
                         Admin Parameters Functions
     //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Pauses the functionalities with whenNotPaused as modifier.
+     * @dev Only callable by the contract owner.
+     */
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    /**
+     * @notice Resumes the functionalities with whenNotPaused as modifier.
+     * @dev Only callable by the contract owner.
+     */
+    function unpause() external onlyOwner {
+        _unpause();
+    }
 
     /**
      * @dev Set the address of the mintRole
@@ -282,22 +303,32 @@ contract PhaseThreeAvatar is ERC721AQueryable, ERC2981, VRFV2WrapperConsumerBase
 
     /**
      * @dev Set the time when soulbound holders can mint the tokens
-     * @param _mintTime New time when soulbound holders can mint the tokens
+     * @param _mintStartTime New time when soulbound holders can mint the tokens
      */
-    function setSoulboundMintTime(uint256 _mintTime) external onlyOwner {
-        soulboundMintTime = _mintTime;
+    function setSoulboundStartMintTime(uint256 _mintStartTime) external onlyOwner {
+        soulboundStartMintTime = _mintStartTime;
 
-        emit ParametersSet("soulboundMintTime", _mintTime);
+        emit ParametersSet("soulboundStartMintTime", _mintStartTime);
+    }
+
+    /**
+     * @dev Set the time when soulbound holders can't mint the tokens
+     * @param _mintEndTime New time when soulbound holders can't mint the tokens
+     */
+    function setSoulboundEndMintTime(uint256 _mintEndTime) external onlyOwner {
+        soulboundEndMintTime = _mintEndTime;
+
+        emit ParametersSet("soulboundEndMintTime", _mintEndTime);
     }
 
     /**
      * @dev Set the time when all users can mint the tokens
-     * @param _mintTime New time when all users can mint the tokens
+     * @param _mintStartTime New time when all users can mint the tokens
      */
-    function setPublicMintTime(uint256 _mintTime) external onlyOwner {
-        publicMintTime = _mintTime;
+    function setPublicStartMintTime(uint256 _mintStartTime) external onlyOwner {
+        publicStartMintTime = _mintStartTime;
 
-        emit ParametersSet("publicMintTime", _mintTime);
+        emit ParametersSet("publicStartMintTime", _mintStartTime);
     }
 
     /**
@@ -331,6 +362,10 @@ contract PhaseThreeAvatar is ERC721AQueryable, ERC2981, VRFV2WrapperConsumerBase
         uriSuffix = _uriSuffix;
 
         emit URISet(uriPrefix, uriSuffix);
+    }
+
+    function setRandomAlgoIPFSLink(string memory _randomAlgoIPFSLink) external onlyOwner {
+        randomAlgoIPFSLink = _randomAlgoIPFSLink;
     }
 
     /**
