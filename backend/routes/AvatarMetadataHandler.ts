@@ -6,6 +6,7 @@ import { AvatarAbi } from "../abis";
 import AvatarService from "../services/AvatarService";
 import SoulboundService from "../services/SoulboundService";
 import { AVATAR_ADDRESS } from "../constants";
+import RevealService from "../services/RevealService";
 
 export const metadata = async (
     event: APIGatewayProxyEvent,
@@ -33,6 +34,7 @@ export const metadata = async (
 
         const avatarService = new AvatarService(contract);
         const soulboundService = new SoulboundService();
+        const revealService = new RevealService();
 
         const token = await avatarService.getAvatarById(tokenId);
 
@@ -42,6 +44,7 @@ export const metadata = async (
             token,
             avatarService,
             soulboundService,
+            revealService,
         );
 
         return {

@@ -1,6 +1,7 @@
 custom:
     userTable: users-${sls:stage}
     avatarTable: avatars-${sls:stage}
+    revealTable: reveals-${sls:stage}
     soulboundTable: soulbounds-${sls:stage}
     signatureTable: signatures-${sls:stage}
     serverless-dynamodb:
@@ -30,6 +31,7 @@ provider:
     environment:
         USER_TABLE: ${self:custom.userTable}
         AVATAR_TABLE: ${self:custom.avatarTable}
+        REVEAL_TABLe: ${self.custom.revealTable}
         SOULBOUND_TABLE: ${self:custom.soulboundTable}
         SIGNATURE_TABLE: ${self:custom.signatureTable}
     memorySize: 128 # optional, in MB, default is 1024
@@ -50,6 +52,7 @@ provider:
           Resource:
               - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.USER_TABLE}"
               - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.AVATAR_TABLE}"
+              - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.REVEAL_TABLe}"
               - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.SOULBOUND_TABLE}"
               - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.SIGNATURE_TABLE}"
 

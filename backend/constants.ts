@@ -19,10 +19,12 @@ const RARE_POOL = {
 };
 const COMMON_POOL = {
     startIdx: BigInt(45),
-    size: BigInt(POOL_SIZE)
-}
+    size: BigInt(POOL_SIZE),
+};
 
 export const POOLS = [LEGENDARY_POOL, EPIC_POOL, RARE_POOL, COMMON_POOL];
+
+export const META_IPFS_URL = "";
 
 export const VRF = BigInt(
     "54358093964092200195992964211992512825669242235183240952295200998486985634194",

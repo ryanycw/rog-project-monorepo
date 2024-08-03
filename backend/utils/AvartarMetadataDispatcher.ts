@@ -1,13 +1,14 @@
 import { Avatar, Metadata } from "../types";
-import * as fs from "fs";
-import * as path from "path";
 import SoulboundService from "../services/SoulboundService";
 import AvatarService from "../services/AvatarService";
+import RevealService from "../services/RevealService";
+import { META_IPFS_URL } from "../constants";
 
 export async function getMetadataByToken(
     avatar: Avatar,
     avatarService: AvatarService,
     soulboundService: SoulboundService,
+    revealService: RevealService,
 ): Promise<Metadata | never> {
     let metadata: Metadata;
 
@@ -18,16 +19,14 @@ export async function getMetadataByToken(
         );
         metadata = await soulboundService.getMetadataById(soulboundId);
     } else {
-        // revealed metadata
-        metadata = JSON.parse(
-            fs.readFileSync(
-                path.resolve(
-                    __dirname,
-                    `../metadata/avatar/${avatar.revealed}.json`,
-                ),
-                "utf-8",
-            ),
+        const metadataId = await revealService.getRealMetadataById(
+            avatar.revealed,
         );
+        // revealed metadata
+        const res = await fetch(
+            `ipfs gateway/${META_IPFS_URL}/${metadataId}.json`,
+        );
+        metadata = (await res.json()) as Metadata;
     }
 
     return metadata;

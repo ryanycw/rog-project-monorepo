@@ -3,3 +3,4 @@ export * from "./Pool";
 export * from "./Avatar";
 export * from "./BlindBox";
 export * from "./Signature";
+export * from "./Reveal";
