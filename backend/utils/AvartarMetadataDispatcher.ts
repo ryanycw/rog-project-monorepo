@@ -12,15 +12,15 @@ export async function getMetadataByToken(
 ): Promise<Metadata | never> {
     let metadata: Metadata;
 
-    if (avatar.revealed == undefined) {
+    if (!avatar.isRevealed) {
         // the nft is not revealed yet
         const soulboundId = await avatarService.getSoulboundIdById(
             avatar.tokenId,
         );
         metadata = await soulboundService.getMetadataById(soulboundId);
     } else {
-        const metadataId = await revealService.getRealMetadataById(
-            avatar.revealed,
+        const metadataId = await revealService.getMetadataIdByRandomId(
+            avatar.randomId,
         );
         // revealed metadata
         const res = await fetch(

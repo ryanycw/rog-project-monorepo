@@ -39,17 +39,21 @@ export default class AvatarService {
         return Number(souldboundId);
     }
 
-    async createAvatar(avatar: Avatar) {
+    async updateAvatar(avatar: Avatar) {
         const params = {
             TableName: this.tableName,
-            Item: {
+            Key: {
                 tokenId: avatar.tokenId,
-                revealed: avatar.revealed,
-                createdAt: new Date().getTime(),
+            },
+            UpdateExpression:
+                "SET randomId = :randomId, isRevealed = :isRevealed",
+            ExpressionAttributeValues: {
+                ":randomId": avatar.randomId,
+                ":isRevealed": avatar.isRevealed,
             },
         };
 
-        await this.client.put(params).promise();
+        await this.client.update(params).promise();
     }
 
     async getAvatarById(tokenId: number): Promise<Avatar> {
@@ -63,48 +67,23 @@ export default class AvatarService {
         const res = await this.client.get(params).promise();
         const avatar = res.Item as Avatar;
 
-        let token: Avatar = {
-            tokenId: tokenId,
-            revealed: undefined,
-        };
-
-        // the nft is revealed
-        if (avatar != undefined) {
-            token.revealed = avatar.revealed;
-        }
-
-        return token;
+        return avatar;
     }
 
-    async isAvatarRevealed(avatarId: number): Promise<boolean> {
-        const params = {
-            TableName: this.tableName,
-            FilterExpression: "#tokenId = :tokenId",
-            ExpressionAttributeNames: { "#tokenId": "tokenId" }, // optional names substitution
-            ExpressionAttributeValues: { ":tokenId": avatarId },
-            Select: "COUNT",
-        };
-
-        const res = await this.client.scan(params).promise();
-        const count = res.Count;
-
-        return count == 0 ? false : true;
-    }
-
-    // if revealedId exists in database && isReserved is true,
+    // if randomId exists in database && isRevealed is true,
     // then the metadata is revealed
-    async isMetadataRevealed(revealedId: bigint): Promise<boolean> {
+    async isRandomIdRevealed(randomId: number): Promise<boolean> {
         const params = {
             TableName: this.tableName,
             FilterExpression:
-                "#avatar_revealedId = :revealedId and #avatar_isReserved = :isReserved",
-            ExpressionAttributeValues: {
-                ":revealedId": Number(revealedId),
-                ":isReserved": false,
-            },
+                "#randomId = :randomId and #isRevealed = :isRevealed",
             ExpressionAttributeNames: {
-                "#avatar_revealedId": "revealedId",
-                "#avatar_isReserved": "isReserved",
+                "#randomId": "randomId",
+                "#isRevealed": "isRevealed",
+            }, // optional names substitution
+            ExpressionAttributeValues: {
+                ":randomId": randomId,
+                ":isRevealed": true,
             },
             Select: "COUNT",
         };
@@ -112,6 +91,6 @@ export default class AvatarService {
         const res = await this.client.scan(params).promise();
         const count = res.Count;
 
-        return count == 0 ? false : true;
+        return count != 0;
     }
 }

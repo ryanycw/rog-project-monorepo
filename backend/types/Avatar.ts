@@ -1,4 +1,5 @@
 export type Avatar = {
     tokenId: number;
-    revealed?: number;
+    randomId: number;
+    isRevealed: boolean;
 };

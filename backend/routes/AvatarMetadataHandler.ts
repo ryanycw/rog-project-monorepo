@@ -36,12 +36,12 @@ export const metadata = async (
         const soulboundService = new SoulboundService();
         const revealService = new RevealService();
 
-        const token = await avatarService.getAvatarById(tokenId);
+        const avatar = await avatarService.getAvatarById(tokenId);
 
         // need to get which blind box should return
         // if nft is revealed, return the given metadata.
         const metadata = await getMetadataByToken(
-            token,
+            avatar,
             avatarService,
             soulboundService,
             revealService,

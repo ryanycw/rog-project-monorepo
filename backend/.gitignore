@@ -5,6 +5,7 @@ jspm_packages
 # Serverless directories
 .serverless
 .build
+/offline
 
 # excel
 *.xlsx
@@ -12,5 +13,9 @@ jspm_packages
 # docker
 docker
 
+# metadata
+/metadata/avatar
+
 # dynamodb test
-test.ts
+/database/utils
+/test

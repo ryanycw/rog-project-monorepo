@@ -39,6 +39,6 @@ export default class UserService {
         const res = await this.client.scan(params).promise();
         const count = res.Count;
 
-        return count == 0 ? false : true;
+        return count != 0;
     }
 }

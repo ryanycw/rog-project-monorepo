@@ -20,7 +20,7 @@ export default class RevealService {
         return this.tableName;
     }
 
-    async getRealMetadataById(randomId: number): Promise<number> {
+    async getMetadataIdByRandomId(randomId: number): Promise<number> {
         const params = {
             TableName: this.tableName,
             Key: {
