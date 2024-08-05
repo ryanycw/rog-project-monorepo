@@ -11,21 +11,29 @@ const LEGENDARY_POOL = {
     type: POOL_TYPE.LEGENDARY,
     startIdx: BigInt(0),
     size: BigInt(POOL_SIZE),
+    originalStartIdx: BigInt(0),
+    originalSize: BigInt(POOL_SIZE),
 };
 const EPIC_POOL = {
     type: POOL_TYPE.EPIC,
     startIdx: BigInt(15),
     size: BigInt(POOL_SIZE),
+    originalStartIdx: BigInt(0),
+    originalSize: BigInt(POOL_SIZE),
 };
 const RARE_POOL = {
     type: POOL_TYPE.RARE,
     startIdx: BigInt(30),
     size: BigInt(POOL_SIZE),
+    originalStartIdx: BigInt(0),
+    originalSize: BigInt(POOL_SIZE),
 };
 export const COMMON_POOL = {
     type: POOL_TYPE.COMMON,
     startIdx: BigInt(45),
     size: BigInt(POOL_SIZE),
+    originalStartIdx: BigInt(0),
+    originalSize: BigInt(POOL_SIZE),
 };
 
 export const POOL_INFO = {

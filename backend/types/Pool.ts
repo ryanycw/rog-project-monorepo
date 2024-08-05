@@ -9,6 +9,8 @@ export type Pool = {
     type: POOL_TYPE;
     startIdx: bigint;
     size: bigint;
+    originalStartIdx: bigint;
+    originalSize: bigint;
 };
 
 export type PoolInfo = {

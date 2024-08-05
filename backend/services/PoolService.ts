@@ -57,8 +57,8 @@ export default class PoolService {
     // 2. if pool is full, pick up a pool is not full yet
     private async getPoolByRandomId(randomId: number): Promise<Pool> {
         let pool = this.pools.find((pool) => {
-            const startIdx = Number(pool.startIdx);
-            const lastIdx = Number(pool.startIdx + pool.size - 1n);
+            const startIdx = Number(pool.originalStartIdx);
+            const lastIdx = Number(pool.originalStartIdx + pool.originalSize - 1n);
             return randomId >= startIdx && randomId <= lastIdx;
         });
 
@@ -106,6 +106,8 @@ export default class PoolService {
             let offset = (this.seed + BigInt(avatarId)) % this.poolInfo.size;
             let randomId = Number(this.poolInfo.startIdx + offset);
             const pool = await this.getPoolByRandomId(randomId);
+            // make sure the randomId is within the pool
+            randomId = Number(pool.startIdx + offset);
             let isRandomIdRevealed =
                 await this.avatarService.isRandomIdRevealed(randomId);
 
