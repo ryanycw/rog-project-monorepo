@@ -137,7 +137,17 @@ describe('PhaseThreeAvatar', () => {
     })
   })
 
-  describe("Set Random Algo IPFS Link", function () {})
+  describe("Set Random Algo IPFS Link", function () {
+    it("should fail if not owner", async function () {
+        await expect(phaseThreeAvatar.connect(signers[1]).setRandomAlgoIPFSLink("test")).to.be.revertedWith("Only callable by owner");
+    })
+
+    it("should success", async function () {
+        await phaseThreeAvatar.connect(signers[0]).setRandomAlgoIPFSLink("test");
+        const link = await phaseThreeAvatar.randomAlgoIPFSLink();
+        expect(link).to.be.equal("test");
+    })
+  })
 
   describe("Public Mint", function () {
     it("should fail if price hasn't set", async function () {
