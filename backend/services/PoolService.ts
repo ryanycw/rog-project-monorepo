@@ -58,7 +58,9 @@ export default class PoolService {
     private async getPoolByRandomId(randomId: number): Promise<Pool> {
         let pool = this.pools.find((pool) => {
             const startIdx = Number(pool.originalStartIdx);
-            const lastIdx = Number(pool.originalStartIdx + pool.originalSize - 1n);
+            const lastIdx = Number(
+                pool.originalStartIdx + pool.originalSize - 1n,
+            );
             return randomId >= startIdx && randomId <= lastIdx;
         });
 

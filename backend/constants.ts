@@ -3,7 +3,7 @@ import { POOL_TYPE } from "./types";
 export const FIRST_TOKEN_ID = 0;
 export const LAST_TOKEN_ID = 10;
 
-export const FREE_MINT_ADDRESS = "0x998a1f5e800bF281094DA9710101bEaF3DEB0ae0";
+export const FREE_MINT_ADDRESS = "0x77E4c192b6ab081584aBB7d71E795663587f7324";
 export const AVATAR_ADDRESS = "0xaac1B7f3B7B7104d4e8169935D9e9e5AF747a962";
 
 const POOL_SIZE = 15;
