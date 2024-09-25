@@ -3,6 +3,7 @@ import fs from 'fs'
 const rawDesc = 'Discover diverse "Relic" and "Relic EVO" artifacts scattered throughout SLASH206.'
 
 const nameList = [
+  'Relic Camera',
   'Relic Handheld Console',
   'Relic Computer',
   'Relic Slide Projector',
